@@ -40,15 +40,63 @@ class HTTPClient(object):
         self.socket.connect((host, port))
         return None
 
+    def parse_url(self, url):
+        o = urllib.parse.urlparse(url)
+        # check if the path is empty
+        # and, is there any port provided if not, use default 80
+        path = o.path or "/"
+        port = o.port or 80
+        return path, port, o
+
     def get_code(self, data):
-        return None
+        # "HTTP/1.1 200 OK" for example
+        # we need 200
+        lines = data.split("\r\n")
+        status_code = lines[0].split(" ")[1]
+        return int(status_code)  # second element 
+       
+    def response_GET(self, host, path):
+        response = "GET {} HTTP/1.1\r\n".format(path)
+        response += "Host: {}\r\n".format(host)
+        response += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        response += "Accept-Charset: utf-8\r\n"
+        response += "Accept-Language: en-US,en;q=0.5\r\n"
+        response += "Connection: close\r\n\r\n"
+        return response
+        
+
+    def response_POST(self, host, path, body):
+        response = "POST {} HTTP/1.1\r\n".format(path)
+        response += "Host: {}\r\n".format(host)
+        response += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
+        response += "Accept-Language: en-US\r\n"
+        response += "Connection: close\r\n"
+
+        # get body length
+        body_length = "0"
+        if body is not None:
+            response += "Content-Type: application/x-www-form-urlencoded\r\n"
+            body_length = len(body)
+
+        response += "Content-Length: {}\r\n".format(body_length)
+        response += "\r\n"
+
+        # get content of body
+        if body is not None:
+            response += "{}\r\n".format(body)
+        return response
 
     def get_headers(self,data):
-        return None
+        lines = data.split("\r\n\r\n") # header with status code
+        header = lines[0].split("\r\n")
+        header.pop(0)  # remove the first line 
+        return header 
 
     def get_body(self, data):
-        return None
-    
+        lines = data.split("\r\n\r\n")
+        body = lines[1]
+        return body
+
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
         
@@ -68,16 +116,38 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        
+        path, port, o = self.parse_url(url)
+        self.connect(o.hostname, port) 
+        self.sendall(self.response_GET(o.hostname, path))
+        request = self.recvall(self.socket)
+        code = self.get_code(request)
+        body = self.get_body(request)
+        self.close()
+
+        print(body)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        if args is not None:
+            args = urllib.parse.urlencode(args)
+
+        path, port, o = self.parse_url(url)
+        self.connect(o.hostname, port) 
+        self.sendall(self.response_POST(o.hostname, path,args))
+        request = self.recvall(self.socket)
+        code = self.get_code(request)
+        body = self.get_body(request)
+        self.close()
+        
+        print(body)
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
+        '''
+        used to call either the GET or POST method based on the first argument
+        '''
+        # only one arg provided, we assume it is url and use GET by default 
         if (command == "POST"):
             return self.POST( url, args )
         else:
