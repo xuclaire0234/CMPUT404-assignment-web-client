@@ -44,8 +44,6 @@ class HTTPClient(object):
         '''
         If the path is not present, assigned "/" to it 
         If the port is not provided, use the default port 80
-        reference website:
-        https://docs.python.org/3/library/urllib.parse.html#:~:text=parse%20%E2%80%94%20Parse%20URLs%20into%20components,-Source%20code%3A%20Lib&text=This%20module%20defines%20a%20standard,given%20a%20%E2%80%9Cbase%20URL.%E2%80%9D
         '''
         o = urllib.parse.urlparse(url)
         path = o.path or "/"
@@ -60,27 +58,23 @@ class HTTPClient(object):
         status_code = lines[0].split(" ")[1]
         return int(status_code)  # second element 
        
-    def response_GET(self, host, path):
+    def request_GET(self, host, path):
         response = "GET {} HTTP/1.1\r\n".format(path)
         response += "Host: {}\r\n".format(host)
-        response += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-        response += "Accept-Charset: utf-8\r\n"
-        response += "Accept-Language: en-US,en;q=0.5\r\n"
+        response += "Accept: */*\r\n"
         response += "Connection: close\r\n\r\n"
         return response
         
 
-    def response_POST(self, host, path, args):
+    def request_POST(self, host, path, args):
         response = "POST {} HTTP/1.1\r\n".format(path)
         response += "Host: {}\r\n".format(host)
-        response += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
-        response += "Accept-Language: en-US\r\n"
+        response += "Accept: */*\r\n"
         response += "Connection: close\r\n"
 
         # get the length of args
         args_length = "0"
         if args is not None:
-            response += "Content-Type: application/x-www-form-urlencoded\r\n"
             args_length = len(args)
 
         response += "Content-Length: {}\r\n".format(args_length)
@@ -132,7 +126,7 @@ class HTTPClient(object):
         path, port, o = self.parse_url(url)
 
         self.connect(o.hostname, port) 
-        self.sendall(self.response_GET(o.hostname, path))
+        self.sendall(self.request_GET(o.hostname, path))
         request = self.recvall(self.socket)
         code = self.get_code(request)
         body = self.get_body(request)
@@ -146,7 +140,7 @@ class HTTPClient(object):
         path, port, o = self.parse_url(url)
 
         self.connect(o.hostname, port) 
-        self.sendall(self.response_POST(o.hostname, path, args))
+        self.sendall(self.request_POST(o.hostname, path, args))
         request = self.recvall(self.socket)
         code = self.get_code(request)
         body = self.get_body(request)
