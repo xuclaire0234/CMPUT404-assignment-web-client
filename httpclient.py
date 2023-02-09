@@ -59,31 +59,32 @@ class HTTPClient(object):
         return int(status_code)  # second element 
        
     def request_GET(self, host, path):
-        response = "GET {} HTTP/1.1\r\n".format(path)
-        response += "Host: {}\r\n".format(host)
-        response += "Accept: */*\r\n"
-        response += "Connection: close\r\n\r\n"
-        return response
+        return (
+        "GET {} HTTP/1.1\r\n".format(path) +
+        "Host: {}\r\n".format(host) +
+        "Accept: */*\r\n" +
+        "Connection: close\r\n\r\n"
+        )
         
 
     def request_POST(self, host, path, args):
-        response = "POST {} HTTP/1.1\r\n".format(path)
-        response += "Host: {}\r\n".format(host)
-        response += "Accept: */*\r\n"
-        response += "Connection: close\r\n"
+        request = "POST {} HTTP/1.1\r\n".format(path)
+        request += "Host: {}\r\n".format(host)
+        request += "Accept: */*\r\n"
+        request += "Connection: close\r\n"
 
         # get the length of args
         args_length = "0"
         if args is not None:
             args_length = len(args)
 
-        response += "Content-Length: {}\r\n".format(args_length)
-        response += "\r\n"
+        request += "Content-Length: {}\r\n".format(args_length)
+        request += "\r\n"
 
         # get content of body
         if args is not None:
-            response += "{}\r\n".format(args)
-        return response
+            request += "{}\r\n".format(args)
+        return request
 
     def none_chacker(self, args):
         '''
