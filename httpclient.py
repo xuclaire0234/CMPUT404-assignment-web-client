@@ -41,16 +41,21 @@ class HTTPClient(object):
         return None
 
     def parse_url(self, url):
+        '''
+        If the path is not present, assigned "/" to it 
+        If the port is not provided, use the default port 80
+        reference website:
+        https://docs.python.org/3/library/urllib.parse.html#:~:text=parse%20%E2%80%94%20Parse%20URLs%20into%20components,-Source%20code%3A%20Lib&text=This%20module%20defines%20a%20standard,given%20a%20%E2%80%9Cbase%20URL.%E2%80%9D
+        '''
         o = urllib.parse.urlparse(url)
-        # check if the path is empty
-        # and, is there any port provided if not, use default 80
         path = o.path or "/"
         port = o.port or 80
         return path, port, o
 
     def get_code(self, data):
-        # "HTTP/1.1 200 OK" for example
-        # we need 200
+        '''
+        extract status code from header
+        '''
         lines = data.split("\r\n")
         status_code = lines[0].split(" ")[1]
         return int(status_code)  # second element 
@@ -65,32 +70,40 @@ class HTTPClient(object):
         return response
         
 
-    def response_POST(self, host, path, body):
+    def response_POST(self, host, path, args):
         response = "POST {} HTTP/1.1\r\n".format(path)
         response += "Host: {}\r\n".format(host)
         response += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n"
         response += "Accept-Language: en-US\r\n"
         response += "Connection: close\r\n"
 
-        # get body length
-        body_length = "0"
-        if body is not None:
+        # get the length of args
+        args_length = "0"
+        if args is not None:
             response += "Content-Type: application/x-www-form-urlencoded\r\n"
-            body_length = len(body)
+            args_length = len(args)
 
-        response += "Content-Length: {}\r\n".format(body_length)
+        response += "Content-Length: {}\r\n".format(args_length)
         response += "\r\n"
 
         # get content of body
-        if body is not None:
-            response += "{}\r\n".format(body)
+        if args is not None:
+            response += "{}\r\n".format(args)
         return response
 
-    def get_headers(self,data):
-        lines = data.split("\r\n\r\n") # header with status code
-        header = lines[0].split("\r\n")
-        header.pop(0)  # remove the first line 
-        return header 
+    def none_chacker(self, args):
+        '''
+        check if args is none 
+        '''
+        if args is not None:
+            args = urllib.parse.urlencode(args)
+        return args
+
+    # def get_headers(self,data):
+    #     lines = data.split("\r\n\r\n") # header with status code
+    #     header = lines[0].split("\r\n")
+    #     header.pop(0)  # remove the first line 
+    #     return header 
 
     def get_body(self, data):
         lines = data.split("\r\n\r\n")
@@ -116,25 +129,24 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        
         path, port, o = self.parse_url(url)
+
         self.connect(o.hostname, port) 
         self.sendall(self.response_GET(o.hostname, path))
         request = self.recvall(self.socket)
         code = self.get_code(request)
         body = self.get_body(request)
         self.close()
-
+        
         print(body)
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        if args is not None:
-            args = urllib.parse.urlencode(args)
-
+        args = self.none_chacker(args)
         path, port, o = self.parse_url(url)
+
         self.connect(o.hostname, port) 
-        self.sendall(self.response_POST(o.hostname, path,args))
+        self.sendall(self.response_POST(o.hostname, path, args))
         request = self.recvall(self.socket)
         code = self.get_code(request)
         body = self.get_body(request)
