@@ -43,8 +43,9 @@ class HTTPClient(object):
     def parse_url(self, url):
         '''
         If the path is not present, assigned "/" to it 
-        If the port is not provided, use the default port 80
+        If the port is not provided, use the default port 80 
         '''
+        
         o = urllib.parse.urlparse(url)
         path = o.path or "/"
         port = o.port or 80
@@ -86,7 +87,7 @@ class HTTPClient(object):
             request += "{}\r\n".format(args)
         return request
 
-    def none_chacker(self, args):
+    def none_checker(self, args):
         '''
         check if args is none 
         '''
@@ -125,19 +126,21 @@ class HTTPClient(object):
 
     def GET(self, url, args=None):
         path, port, o = self.parse_url(url)
-
-        self.connect(o.hostname, port) 
-        self.sendall(self.request_GET(o.hostname, path))
-        request = self.recvall(self.socket)
-        code = self.get_code(request)
-        body = self.get_body(request)
-        self.close()
-        
-        print(body)
-        return HTTPResponse(code, body)
+        if o.hostname is None:
+            print("400 Bad Request")
+        else:
+            self.connect(o.hostname, port) 
+            self.sendall(self.request_GET(o.hostname, path))
+            request = self.recvall(self.socket)
+            code = self.get_code(request)
+            body = self.get_body(request)
+            self.close()
+            
+            print(body)
+            return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        args = self.none_chacker(args)
+        args = self.none_checker(args)
         path, port, o = self.parse_url(url)
 
         self.connect(o.hostname, port) 
@@ -149,13 +152,34 @@ class HTTPClient(object):
         
         print(body)
         return HTTPResponse(code, body)
-
+    
+    def url_checker(self, url):
+        result = ""
+        index = url.find("//")
+        special_characters = "!@#$%^&*()-+?_=,<>/"
+        url_parts = url.split(":")
+        try:
+            if "//" not in url:
+                result = "400 Bad Request"
+            elif url[index+2] == "/":
+                result = "400 Bad Request"
+            elif any(c in special_characters for c in url):
+                result = "400 Bad Request"
+            elif len(url_parts) > 2:
+                result = "400 Bad Request"
+        except IndexError:
+            result = "400 Bad Request"
+        return result
+        
     def command(self, url, command="GET", args=None):
         '''
         used to call either the GET or POST method based on the first argument
         '''
         # only one arg provided, we assume it is url and use GET by default 
-        if (command == "POST"):
+        isValidate_url = self.url_checker(url)
+        if isValidate_url != "":
+            return isValidate_url
+        elif (command == "POST"):
             return self.POST( url, args )
         else:
             return self.GET( url, args )
